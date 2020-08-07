@@ -470,3 +470,91 @@ func TestRoundtrip(t *testing.T) {
 
 	}
 }
+
+func TestParseLines(t *testing.T) {
+	lines := []string{
+		`OPTION_A='1'`,
+		`OPTION_B='2'`,
+		`OPTION_C=''`,
+	}
+	envMap, err := parseLines(lines)
+	expectedValues := map[string]string{
+		"OPTION_A": "1",
+		"OPTION_B": "2",
+		"OPTION_C": "",
+	}
+	if err != nil {
+		t.Fatalf("error parsing env: %v", err)
+	}
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("expected %s to be %s, got %s", key, value, envMap[key])
+		}
+	}
+}
+
+func TestParseLinesPrefix(t *testing.T) {
+	lines := []string{
+		`###CI-`,
+		`OPTION_A='1'`,
+		`CI-OPTION_B='2'`,
+		`CI-OPTION_C=''`,
+	}
+	envMap, err := parseLines(lines)
+	expectedValues := map[string]string{
+		"OPTION_B": "2",
+		"OPTION_C": "",
+	}
+	notExpectedValues := map[string]string{
+		"OPTION_A": "1",
+	}
+	if err != nil {
+		t.Fatalf("error parsing env: %v", err)
+	}
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("expected %s to be %s, got %s", key, value, envMap[key])
+		}
+	}
+	for key, value := range notExpectedValues {
+		if _, find := envMap[key]; find {
+			t.Errorf("not expected %s to be %s, got %s", key, value, envMap[key])
+		}
+	}
+}
+
+func TestParseLinesMultiPrefix(t *testing.T) {
+	lines := []string{
+		`###CI-#PROD-#`,
+		`OPTION_A='1'`,
+		`CI-OPTION_B='2'`,
+		`CI-OPTION_C=''`,
+		`OPTION_K='1'`,
+		`PROD-OPTION_L='2'`,
+		`PROD-OPTION_M=''`,
+	}
+	envMap, err := parseLines(lines)
+	expectedValues := map[string]string{
+		"OPTION_B": "2",
+		"OPTION_C": "",
+		"OPTION_L": "2",
+		"OPTION_M": "",
+	}
+	notExpectedValues := map[string]string{
+		"OPTION_A": "1",
+		"OPTION_K": "1",
+	}
+	if err != nil {
+		t.Fatalf("error parsing env: %v", err)
+	}
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("expected %s to be %s, got %s", key, value, envMap[key])
+		}
+	}
+	for key, value := range notExpectedValues {
+		if _, find := envMap[key]; find {
+			t.Errorf("not expected %s to be %s, got %s", key, value, envMap[key])
+		}
+	}
+}
