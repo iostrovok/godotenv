@@ -25,6 +25,12 @@ import (
 	"strings"
 )
 
+var EnvPrefix = []string{}
+
+func init() {
+	EnvPrefix = checkPrefix(os.Getenv("ENV_PREFIX"))
+}
+
 const doubleQuoteSpecialChars = "\\\n\r\"!$`"
 
 // Load will read your env file(s) and load them into ENV for this process.
@@ -96,6 +102,44 @@ func Read(filenames ...string) (envMap map[string]string, err error) {
 }
 
 // Parse reads an env file from io.Reader, returning a map of keys and values.
+func parseLines(lines []string) (envMap map[string]string, err error) {
+	envMap = make(map[string]string)
+
+	prefixes := make([]string, len(EnvPrefix))
+	copy(prefixes, EnvPrefix)
+	for i, fullLine := range lines {
+		if i == 0 && len(prefixes) == 0 {
+			if prefixes = checkPrefix(fullLine); len(prefixes) > 0 {
+				continue
+			}
+		}
+
+		if !isIgnoredLine(fullLine) {
+			var key, value string
+			key, value, err = parseLine(fullLine, envMap)
+
+			if err != nil {
+				return
+			}
+
+			if len(prefixes) > 0 {
+				for _, prefix := range prefixes {
+					if strings.HasPrefix(key, prefix) {
+						key = strings.TrimPrefix(key, prefix)
+						envMap[key] = value
+						break
+					}
+				}
+			} else {
+				envMap[key] = value
+			}
+		}
+	}
+
+	return
+}
+
+// Parse reads an env file from io.Reader, returning a map of keys and values.
 func Parse(r io.Reader) (envMap map[string]string, err error) {
 	envMap = make(map[string]string)
 
@@ -109,18 +153,7 @@ func Parse(r io.Reader) (envMap map[string]string, err error) {
 		return
 	}
 
-	for _, fullLine := range lines {
-		if !isIgnoredLine(fullLine) {
-			var key, value string
-			key, value, err = parseLine(fullLine, envMap)
-
-			if err != nil {
-				return
-			}
-			envMap[key] = value
-		}
-	}
-	return
+	return parseLines(lines)
 }
 
 //Unmarshal reads an env file from a string, returning a map of keys and values.
@@ -269,6 +302,7 @@ func parseLine(line string, envMap map[string]string) (key string, value string,
 
 	// Parse the value
 	value = parseValue(splitString[1], envMap)
+
 	return
 }
 
@@ -341,6 +375,27 @@ func expandVariables(v string, m map[string]string) string {
 func isIgnoredLine(line string) bool {
 	trimmedLine := strings.TrimSpace(line)
 	return len(trimmedLine) == 0 || strings.HasPrefix(trimmedLine, "#")
+}
+
+func checkPrefix(line string) []string {
+
+	prefixes := make([]string, 0)
+
+	trimmedLine := strings.TrimSpace(line)
+	if len(trimmedLine) == 0 || !strings.HasPrefix(trimmedLine, "#-#-#") {
+		return prefixes
+	}
+
+	trimmedLine = strings.TrimPrefix(trimmedLine, "#-#-#")
+
+	segments := strings.Split(line, "#")
+	for _, segment := range segments {
+		if trimmed := strings.TrimSpace(segment); trimmed != "" {
+			prefixes = append(prefixes, trimmed)
+		}
+	}
+
+	return prefixes
 }
 
 func doubleQuoteEscape(line string) string {
