@@ -25,6 +25,12 @@ import (
 	"strings"
 )
 
+var EnvPrefix = []string{}
+
+func init() {
+	EnvPrefix = checkPrefix(os.Getenv("ENV_PREFIX"))
+}
+
 const doubleQuoteSpecialChars = "\\\n\r\"!$`"
 
 // Load will read your env file(s) and load them into ENV for this process.
@@ -99,11 +105,11 @@ func Read(filenames ...string) (envMap map[string]string, err error) {
 func parseLines(lines []string) (envMap map[string]string, err error) {
 	envMap = make(map[string]string)
 
-	prefixes := make([]string, 0)
+	prefixes := make([]string, len(EnvPrefix))
+	copy(prefixes, EnvPrefix)
 	for i, fullLine := range lines {
-		if i == 0 {
-			prefixes = checkPrefix(fullLine)
-			if len(prefixes) > 0 {
+		if i == 0 && len(prefixes) == 0 {
+			if prefixes = checkPrefix(fullLine); len(prefixes) > 0 {
 				continue
 			}
 		}
