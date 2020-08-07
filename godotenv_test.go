@@ -495,7 +495,7 @@ func TestParseLines(t *testing.T) {
 
 func TestParseLinesPrefix(t *testing.T) {
 	lines := []string{
-		`###CI-`,
+		`#-#-#CI-`,
 		`OPTION_A='1'`,
 		`CI-OPTION_B='2'`,
 		`CI-OPTION_C=''`,
@@ -525,7 +525,7 @@ func TestParseLinesPrefix(t *testing.T) {
 
 func TestParseLinesMultiPrefix(t *testing.T) {
 	lines := []string{
-		`###CI-#PROD-#`,
+		`#-#-#CI-#PROD-#`,
 		`OPTION_A='1'`,
 		`CI-OPTION_B='2'`,
 		`CI-OPTION_C=''`,

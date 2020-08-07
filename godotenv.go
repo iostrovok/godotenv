@@ -376,9 +376,11 @@ func checkPrefix(line string) []string {
 	prefixes := make([]string, 0)
 
 	trimmedLine := strings.TrimSpace(line)
-	if len(trimmedLine) == 0 || !strings.HasPrefix(trimmedLine, "###") {
+	if len(trimmedLine) == 0 || !strings.HasPrefix(trimmedLine, "#-#-#") {
 		return prefixes
 	}
+
+	trimmedLine = strings.TrimPrefix(trimmedLine, "#-#-#")
 
 	segments := strings.Split(line, "#")
 	for _, segment := range segments {
