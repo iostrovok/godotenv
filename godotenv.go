@@ -16,19 +16,26 @@ package godotenv
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
-var EnvPrefix = []string{}
+// lockGlobalVars is necessary for global envPrefix if we want to do multi loads.
+var lockGlobalVars sync.Mutex
+var envPrefix []string
 
 func init() {
-	EnvPrefix = checkPrefix(os.Getenv("ENV_PREFIX"))
+	envPrefix = make([]string, 0)
+}
+
+// EnvPrefix returns the used prefix
+func EnvPrefix() []string {
+	return envPrefix
 }
 
 const doubleQuoteSpecialChars = "\\\n\r\"!$`"
@@ -103,13 +110,14 @@ func Read(filenames ...string) (envMap map[string]string, err error) {
 
 // Parse reads an env file from io.Reader, returning a map of keys and values.
 func parseLines(lines []string) (envMap map[string]string, err error) {
-	envMap = make(map[string]string)
+	lockGlobalVars.Lock()
+	defer lockGlobalVars.Unlock()
 
-	prefixes := make([]string, len(EnvPrefix))
-	copy(prefixes, EnvPrefix)
+	envMap = make(map[string]string)
+	envPrefix = checkPrefix(os.Getenv("ENV_PREFIX"))
 	for i, fullLine := range lines {
-		if i == 0 && len(prefixes) == 0 {
-			if prefixes = checkPrefix(fullLine); len(prefixes) > 0 {
+		if i == 0 && len(envPrefix) == 0 {
+			if envPrefix = checkPrefix(fullLine); len(envPrefix) > 0 {
 				continue
 			}
 		}
@@ -122,8 +130,8 @@ func parseLines(lines []string) (envMap map[string]string, err error) {
 				return
 			}
 
-			if len(prefixes) > 0 {
-				for _, prefix := range prefixes {
+			if len(envPrefix) > 0 {
+				for _, prefix := range envPrefix {
 					if strings.HasPrefix(key, prefix) {
 						key = strings.TrimPrefix(key, prefix)
 						envMap[key] = value
@@ -202,7 +210,7 @@ func Write(envMap map[string]string, filename string) error {
 func Marshal(envMap map[string]string) (string, error) {
 	lines := make([]string, 0, len(envMap))
 	for k, v := range envMap {
-		lines = append(lines, fmt.Sprintf(`%s="%s"`, k, doubleQuoteEscape(v)))
+		lines = append(lines, k+`="`+doubleQuoteEscape(v)+`"`)
 	}
 	sort.Strings(lines)
 	return strings.Join(lines, "\n"), nil
@@ -386,9 +394,7 @@ func checkPrefix(line string) []string {
 		return prefixes
 	}
 
-	trimmedLine = strings.TrimPrefix(trimmedLine, "#-#-#")
-
-	segments := strings.Split(line, "#")
+	segments := strings.Split(strings.TrimPrefix(trimmedLine, "#-#-#"), "#")
 	for _, segment := range segments {
 		if trimmed := strings.TrimSpace(segment); trimmed != "" {
 			prefixes = append(prefixes, trimmed)
