@@ -2,7 +2,6 @@ package godotenv
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -451,7 +450,7 @@ func TestWrite(t *testing.T) {
 func TestRoundtrip(t *testing.T) {
 	fixtures := []string{"equals.env", "exported.env", "plain.env", "quoted.env"}
 	for _, fixture := range fixtures {
-		fixtureFilename := fmt.Sprintf("fixtures/%s", fixture)
+		fixtureFilename := "fixtures/" + fixture
 		env, err := readFile(fixtureFilename)
 		if err != nil {
 			t.Errorf("Expected '%s' to read without error (%v)", fixtureFilename, err)
@@ -491,6 +490,10 @@ func TestParseLines(t *testing.T) {
 			t.Errorf("expected %s to be %s, got %s", key, value, envMap[key])
 		}
 	}
+
+	if len(EnvPrefix()) != 0 {
+		t.Errorf("expected zero length, got %d", len(EnvPrefix()))
+	}
 }
 
 func TestParseLinesPrefix(t *testing.T) {
@@ -520,6 +523,13 @@ func TestParseLinesPrefix(t *testing.T) {
 		if _, find := envMap[key]; find {
 			t.Errorf("not expected %s to be %s, got %s", key, value, envMap[key])
 		}
+	}
+
+	prefixes := EnvPrefix()
+	if len(prefixes) != 1 {
+		t.Errorf("expected length 1, got %d", len(prefixes))
+	} else if prefixes[0] != "CI-" {
+		t.Errorf(`expected "CI-", got "%s"`, prefixes[0])
 	}
 }
 
@@ -556,5 +566,14 @@ func TestParseLinesMultiPrefix(t *testing.T) {
 		if _, find := envMap[key]; find {
 			t.Errorf("not expected %s to be %s, got %s", key, value, envMap[key])
 		}
+	}
+
+	prefixes := EnvPrefix()
+	if len(prefixes) != 2 {
+		t.Errorf("expected length 1, got %d", len(prefixes))
+	} else if prefixes[0] != "CI-" {
+		t.Errorf(`expected "CI-", got "%s"`, prefixes[0])
+	} else if prefixes[1] != "PROD-" {
+		t.Errorf(`expected "PROD-", got "%s"`, prefixes[1])
 	}
 }
