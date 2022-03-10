@@ -1,3 +1,3 @@
 module github.com/iostrovok/godotenv
 
-go 1.14
+go 1.17
